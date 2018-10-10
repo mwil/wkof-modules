@@ -3,7 +3,7 @@
 // @namespace   wkof
 // @author      acm
 // @description Events module for wkof
-// @version     0.0.1
+// @version     0.7.0
 // @copyright   2018+, Matthias Wilhelm
 // @license     MIT; http://opensource.org/licenses/MIT
 // ==/UserScript==
@@ -11,7 +11,6 @@
 /* jshint esversion: 6 */
 
 // Observe changes in the WK website and trigger events.
-// Provide some convience functions to access page data.
 //
 // List of events:
 // ------------------------------------
@@ -24,53 +23,34 @@
 // -- quiz.result
 //
 // List of data:
-// -- item (slug?)
-// -- type (rad, kan, voc)
-// -- curPage
+// -- item (Japanese string or empty for some radicals)
+// -- slug (=item, the name for some radicals)
+// -- type type of the item (rad, kan, voc)
+// -- page (type of the current page)
+//
+// List of page types
+// -- unknown
+// -- radicals, kanji, vocabulary
+// -- reviews_quiz, reviews_summary
+// -- lessons, lessons_quiz, lessons_summary
 //
 
 (function(global)
 {
    'use strict';
 
-	const PageEnum = Object.freeze({
-	    'unknown': 0,
-        'radicals': 1,
-        'kanji': 2,
-        'vocabulary': 3,
-        'reviews_quiz': 4,
-        'reviews_summary': 5,
-        'lessons': 6,
-        'lessons_quiz': 7,
-        'lessons_summary': 8
-	});
-
-	const TypeEnum = Object.freeze({
-	    'unknown': 0,
-	    'rad': 1,
-	    'kan': 2,
-	    'voc': 3
-	});
-
-    let wk_state = {
-        char: null,
-        slug: null,
-        page: 'unknown',
-        type: 'unknown'
-    };
-
+    let wk_state = {};
 
 	// ########################################################################
 	// ------------------------------
 	// Published interface
 	// ------------------------------
-	global.wkof.Events = {
-        wk_state: wk_state,
-	};
+	global.wkof.Events = {};
 	// ########################################################################
 
     const quiz_showinfo_obs = new MutationObserver(quiz_showinfo_callback);
     const quiz_answer_obs   = new MutationObserver(quiz_answer_callback);
+
     const lesson_quiz_prompt_obs = new MutationObserver(lesson_quiz_prompt_callback);
     const review_quiz_prompt_obs = new MutationObserver(review_quiz_prompt_callback);
 
@@ -78,8 +58,8 @@
 
     function wk_state_reset()
     {
-        wk_state.char = null;
-        wk_state.slug = null;
+        wk_state.char = '';
+        wk_state.slug = '';
         wk_state.type = 'unknown';
         wk_state.page = 'unknown';
     }
@@ -151,12 +131,12 @@
                 );
             });
 
-            // Reuse the standard review observer for lesson reviews
             lesson_quiz_prompt_obs.observe(
                 document.getElementById('character'),
                 {childList: true}
             );
 
+            // Reuse some standard review observers for lesson reviews
             quiz_answer_obs.observe(
                 document.getElementById('answer-form'),
                 {attributes: true, attributeFilter: ['class'], subtree: true}
@@ -216,9 +196,12 @@
         {
             process_qitem($.jStorage.get('currentItem'));
 
-            wkof.trigger('quiz.prompt', {
-                questionType: $.jStorage.get('questionType')
-            });
+            wkof.trigger('quiz.prompt',
+                Object.assign(
+                    {questionType: $.jStorage.get('questionType')},
+                    wk_state
+                )
+            );
         }
     }
 
@@ -230,9 +213,12 @@
             process_qitem($.jStorage.get('l/currentQuizItem'));
             wk_state.page = 'lessons_quiz';
 
-            wkof.trigger('quiz.prompt', {
-                questionType: $.jStorage.get('l/questionType')
-            });
+            wkof.trigger('quiz.prompt',
+                Object.assign(
+                    {questionType: $.jStorage.get('l/questionType')},
+                    wk_state
+                )
+            );
         }
     }
 
@@ -241,12 +227,14 @@
         // Matches both correct and incorrect
         if (/correct/.test(mutations[0].target.className))
         {
-            wkof.trigger('quiz.result', {
-                result: $("#answer-form fieldset").hasClass('correct')?
-                        'correct':
-                        'incorrect',
-                questionType: $.jStorage.get('questionType')
-            });
+            wkof.trigger('quiz.result',
+                Object.assign({
+                    result: $("#answer-form fieldset").hasClass('correct')?
+                            'correct':
+                            'incorrect',
+                    questionType: $.jStorage.get('questionType')
+                }, wk_state)
+            );
         }
     }
 
@@ -259,10 +247,10 @@
     }
 
     const LODASH = 'https://cdn.jsdelivr.net/npm/lodash@4.17.11/lodash.min.js';
-    let promises = [];
-
-    promises.push(wkof.ready('document'));
-    promises.push(wkof.load_script(LODASH, true /* use_cache */));
+    const promises = [
+        wkof.ready('document'),
+        wkof.load_script(LODASH, true /* use_cache */)
+    ];
 
     Promise.all(promises).then(set_ready_state);
 
@@ -270,8 +258,8 @@
 	{
 	    wkof.on('item.ready',    (data)=>{console.log('item.ready:', data);});
 	    wkof.on('quiz.showinfo', (data)=>{console.log('quis.showinfo:', data);});
-	    wkof.on('quiz.prompt',   (data)=>{console.log('quiz.prompt:', wk_state, ', data:', data);});
-	    wkof.on('quiz.result',   (data)=>{console.log('quiz.result:', wk_state, ', data:', data);});
+	    wkof.on('quiz.prompt',   (data)=>{console.log('quiz.prompt:', data);});
+	    wkof.on('quiz.result',   (data)=>{console.log('quiz.result:', data);});
 
 	    process_page();
 
