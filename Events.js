@@ -18,17 +18,10 @@
 // General
 // -- item.ready
 //
-// Lessons
-// -- lessons.prevItem
-// -- lessons.nextItem
-//
 // Lesson quiz and reviews
-// -- quiz.nextItem
-// -- quiz.moreInfo
-// -- quiz.readingPrompt
-// -- quiz.meaningPrompt
-// -- quiz.readingResult
-// -- quiz.meaningResult
+// -- quiz.showinfo
+// -- quiz.prompt
+// -- quiz.result
 //
 // List of data:
 // -- item (slug?)
@@ -38,14 +31,14 @@
 
 (function(global)
 {
-   "use strict";
+   'use strict';
 
 	const PageEnum = Object.freeze({
 	    'unknown': 0,
         'radicals': 1,
         'kanji': 2,
         'vocabulary': 3,
-        'reviews': 4,
+        'reviews_quiz': 4,
         'reviews_summary': 5,
         'lessons': 6,
         'lessons_quiz': 7,
@@ -60,9 +53,10 @@
 	});
 
     let wk_state = {
-        item: null,
-        page: PageEnum.unknown,
-        type: TypeEnum.unknown
+        char: null,
+        slug: null,
+        page: 'unknown',
+        type: 'unknown'
     };
 
 
@@ -72,70 +66,83 @@
 	// ------------------------------
 	global.wkof.Events = {
         wk_state: wk_state,
-
-        P_ENUM: PageEnum,
-        T_ENUM: TypeEnum
 	};
 	// ########################################################################
 
-   const moreinfo_obs  = new MutationObserver(moreinfo_callback);
-   const lesson_obs  = new MutationObserver(lesson_callback);
+    const quiz_showinfo_obs = new MutationObserver(quiz_showinfo_callback);
+    const quiz_answer_obs   = new MutationObserver(quiz_answer_callback);
+    const lesson_quiz_prompt_obs = new MutationObserver(lesson_quiz_prompt_callback);
+    const review_quiz_prompt_obs = new MutationObserver(review_quiz_prompt_callback);
+
+    const lesson_obs = new MutationObserver(lesson_callback);
+
+    function wk_state_reset()
+    {
+        wk_state.char = null;
+        wk_state.slug = null;
+        wk_state.type = 'unknown';
+        wk_state.page = 'unknown';
+    }
 
 	function process_page()
     {
         const pathname =  window.location.pathname;
 
-        wk_state.item = null;
-        wk_state.type = TypeEnum.unknown;
+        wk_state_reset();
 
         if (/\/radicals\//.test(pathname))
         {
-            wk_state.item = pathname.split('/').slice(-1)[0];
-            wk_state.type = TypeEnum.rad;
-            wk_state.page = PageEnum.radicals;
+            wk_state.char = $('span.radical-icon').text();
+            wk_state.slug = pathname.split('/').slice(-1)[0];
+            wk_state.type = 'rad';
+            wk_state.page = 'radicals';
 
-            wkof.trigger('item.ready');
+            wkof.trigger('item.ready', wk_state);
         }
         else if (/\/kanji\//.test(pathname))
         {
-            wk_state.item = decodeURIComponent(pathname.split('/').slice(-1)[0]);
-            wk_state.type = TypeEnum.kan;
-            wk_state.page = PageEnum.kanji;
+            wk_state.char = decodeURIComponent(pathname.split('/').slice(-1)[0]);
+            wk_state.slug = wk_state.char;
+            wk_state.type = 'kan';
+            wk_state.page = 'kanji';
 
-            wkof.trigger('item.ready');
+            wkof.trigger('item.ready', wk_state);
         }
         else if (/\/vocabulary\//.test(pathname))
         {
-            wk_state.item = decodeURIComponent(pathname.split('/').slice(-1)[0]);
-            wk_state.type = TypeEnum.voc;
-            wk_state.page = PageEnum.vocabulary;
+            wk_state.char = decodeURIComponent(pathname.split('/').slice(-1)[0]);
+            wk_state.slug = wk_state.char;
+            wk_state.type = 'voc';
+            wk_state.page = 'vocabulary';
 
-            wkof.trigger('item.ready');
+            wkof.trigger('item.ready', wk_state);
         }
         else if (/\/review\/session/.test(pathname))
         {
-            wk_state.page = PageEnum.reviews;
+            wk_state.page = 'reviews_quiz';
 
-            // Set up observation for:
-            // -- nextItem (new prompt)
-            // -- prompts
-            // -- answers
-            // -- more info fold loaded
-            // ---- changes state => item.ready
+            review_quiz_prompt_obs.observe(
+                document.getElementById('loading'),
+                {attributes: true, attributeFilter: ['style']}
+            );
+            review_quiz_prompt_obs.observe(
+                document.getElementById('character'),
+                {attributes: true, attributeFilter: ['class']}
+            );
 
-            moreinfo_obs.observe(
-                document.getElementById(`item-info-col2`),
+            quiz_answer_obs.observe(
+                document.getElementById('answer-form'),
+                {attributes: true, attributeFilter: ['class'], subtree: true}
+            );
+
+            quiz_showinfo_obs.observe(
+                document.getElementById('item-info-col2'),
                 {childList: true}
             );
         }
         else if (/\/lesson\/session/.test(pathname))
         {
-            wk_state.page = PageEnum.lessons;
-
-            // Set up observation for:
-            // -- quiz start (continues with review events)
-            // -- prevItem, nextItem
-            // ---- changes state => item.ready
+            wk_state.page = 'lessons';
 
             ['rad', 'kan', 'voc'].forEach((type)=>{
                 lesson_obs.observe(
@@ -145,68 +152,126 @@
             });
 
             // Reuse the standard review observer for lesson reviews
-            moreinfo_obs.observe(
-                document.getElementById(`item-info-col2`),
+            lesson_quiz_prompt_obs.observe(
+                document.getElementById('character'),
+                {childList: true}
+            );
+
+            quiz_answer_obs.observe(
+                document.getElementById('answer-form'),
+                {attributes: true, attributeFilter: ['class'], subtree: true}
+            );
+
+            quiz_showinfo_obs.observe(
+                document.getElementById('item-info-col2'),
                 {childList: true}
             );
 
             // The first lesson is directly available after loading
-            process_item($.jStorage.get("l/currentLesson"));
-            wkof.trigger('item.ready');
+            process_qitem($.jStorage.get('l/currentLesson'));
+            wkof.trigger('item.ready', wk_state);
         }
         else if (/\/review/.test(pathname))
-            wk_state.page = PageEnum.reviews_summary;
+            wk_state.page = 'reviews_summary';
         else if (/\/lesson/.test(pathname))
-            wk_state.page = PageEnum.lessons_summary;
-        else
-            wk_state.page = PageEnum.unknown;
+            wk_state.page = 'lessons_summary';
     }
 
-    function process_item(queue_item)
+    function process_qitem(queue_item)
     {
         if ('rad' in queue_item)
         {
-            // TODO: this results in either the long name ('courage') or
-            // the kanji (勇) if available, should be the same any time!
-            if (!!queue_item.custom_font_name)
-                wk_state.item = queue_item.custom_font_name;
-            else
-                wk_state.item = queue_item.rad;
-
-            wk_state.type = TypeEnum.rad;
+            wk_state.char = queue_item.rad;
+            wk_state.slug = _.kebabCase(queue_item.en[0]);
+            wk_state.type = 'rad';
         }
         else if ('kan' in queue_item)
         {
-            wk_state.item = queue_item.kan;
-            wk_state.type = TypeEnum.kan;
+            wk_state.char = queue_item.kan;
+            wk_state.slug = queue_item.kan;
+            wk_state.type = 'kan';
         }
         else if ('voc' in queue_item)
         {
-            wk_state.item = queue_item.voc;
-            wk_state.type = TypeEnum.voc;
+            wk_state.char = queue_item.voc;
+            wk_state.slug = queue_item.voc;
+            wk_state.type = 'voc';
         }
     }
 
-    function moreinfo_callback(mutations)
+    function quiz_showinfo_callback(mutations)
     {
         // Length 2 for radical page, 4 for kanji page (vocab is 5)
         if (mutations.some((m) => [2, 4, 5].includes(m.addedNodes.length)))
-            wkof.trigger('item.ready');
+        {
+            wkof.trigger('quiz.showinfo', wk_state);
+            wkof.trigger('item.ready', wk_state);
+        }
+    }
+
+    function review_quiz_prompt_callback(mutations)
+    {
+        // Reviews: two events for transition, three for the last step of loading
+        if ([2, 3].includes(mutations.length))
+        {
+            process_qitem($.jStorage.get('currentItem'));
+
+            wkof.trigger('quiz.prompt', {
+                questionType: $.jStorage.get('questionType')
+            });
+        }
+    }
+
+    function lesson_quiz_prompt_callback(mutations)
+    {
+        // Lessons: two events for all transition
+        if (mutations.length === 2)
+        {
+            process_qitem($.jStorage.get('l/currentQuizItem'));
+            wk_state.page = 'lessons_quiz';
+
+            wkof.trigger('quiz.prompt', {
+                questionType: $.jStorage.get('l/questionType')
+            });
+        }
+    }
+
+    function quiz_answer_callback(mutations)
+    {
+        // Matches both correct and incorrect
+        if (/correct/.test(mutations[0].target.className))
+        {
+            wkof.trigger('quiz.result', {
+                result: $("#answer-form fieldset").hasClass('correct')?
+                        'correct':
+                        'incorrect',
+                questionType: $.jStorage.get('questionType')
+            });
+        }
     }
 
     function lesson_callback(mutations)
     {
-        process_item($.jStorage.get("l/currentLesson"));
+        process_qitem($.jStorage.get('l/currentLesson'));
+        wk_state.page = 'lessons';
 
-        wkof.trigger('item.ready');
+        wkof.trigger('item.ready', wk_state);
     }
 
+    const LODASH = 'https://cdn.jsdelivr.net/npm/lodash@4.17.11/lodash.min.js';
+    let promises = [];
 
-    wkof.ready('document').then(set_ready_state);
+    promises.push(wkof.ready('document'));
+    promises.push(wkof.load_script(LODASH, true /* use_cache */));
+
+    Promise.all(promises).then(set_ready_state);
 
 	function set_ready_state()
 	{
-	    wkof.on('item.ready', ()=>{console.log('The current page state is', wk_state);});
+	    wkof.on('item.ready',    (data)=>{console.log('item.ready:', data);});
+	    wkof.on('quiz.showinfo', (data)=>{console.log('quis.showinfo:', data);});
+	    wkof.on('quiz.prompt',   (data)=>{console.log('quiz.prompt:', wk_state, ', data:', data);});
+	    wkof.on('quiz.result',   (data)=>{console.log('quiz.result:', wk_state, ', data:', data);});
 
 	    process_page();
 
