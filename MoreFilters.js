@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name          WaniKani Open Framework acm's filters
+// @name          WaniKani Open Framework ACM's filters
 // @namespace     wkof
 // @author        acm
 // @description   Additional filters for the WaniKani Open Framework
-// @version       0.1.0
+// @version       0.8.0
 //
 // @include       *://www.wanikani.com/*
 // @copyright     2018+, Matthias Wilhelm
@@ -34,7 +34,7 @@
 
 	if (!wkof.version || wkof.version.compare_to(wkofMinimumVersion) === 'older')
 	{
-		alert(`WaniKani Open Framework acm's Filters requires at least version ${wkofMinimumVersion} of WaniKani Open Framework.`);
+		alert(`WaniKani Open Framework ACM's Filters requires at least version ${wkofMinimumVersion} of WaniKani Open Framework.`);
 
 		return;
 	}
@@ -54,7 +54,7 @@
 	function registerJLPTLevelsFilter() {
 		wkof.ItemData.registry.sources.wk_items.filters[JLPTLevelsFilterName] = {
 			type: 'multi',
-			label: 'JLPT levels',
+			label: 'JLPT Levels',
 			content: {5: 'N5', 4: 'N4', 3: 'N3', 2: 'N2', 1:'N1'},
 			default: [],
 			filter_func: JLPTLevelsFilter,
@@ -66,7 +66,7 @@
     let jlpt_db;
 
 	wkof.load_file('https://raw.githubusercontent.com/mwil/wkof-modules/master/data/jlpt.json', true /* use_cache */)
-    .then(function(json){jlpt_db = JSON.parse(json);});
+        .then(function(json){jlpt_db = JSON.parse(json);});
 
 	function JLPTLevelsFilter(filterValue, item) {
         if (!(item.id in jlpt_db))
