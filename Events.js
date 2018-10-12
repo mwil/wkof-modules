@@ -257,7 +257,7 @@
 	function set_ready_state()
 	{
 	    wkof.on('item.ready',    (data)=>{console.log('item.ready:', data);});
-	    wkof.on('quiz.showinfo', (data)=>{console.log('quis.showinfo:', data);});
+	    wkof.on('quiz.showinfo', (data)=>{console.log('quiz.showinfo:', data);});
 	    wkof.on('quiz.prompt',   (data)=>{console.log('quiz.prompt:', data);});
 	    wkof.on('quiz.result',   (data)=>{console.log('quiz.result:', data);});
 
