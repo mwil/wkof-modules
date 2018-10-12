@@ -39,26 +39,10 @@
 		return;
 	}
 
-	function promise(){var a,b,c=new Promise(function(d,e){a=d;b=e;});c.resolve=a;c.reject=b;return c;}
-
-	var settingsDialog;
-	var settingsScriptId = 'acmFilters';
-	var settingsTitle = 'More Filters by acm';
-
-	var needToRegisterFilters = true;
-	var settingsLoadedPromise = promise();
-
 	var filterNamePrefix = 'acmFilters_';
 	var JLPTLevelsFilterName = filterNamePrefix + 'JLPTLevels';
 
-	var supportedFilters = [JLPTLevelsFilterName];
-
-	var defaultSettings = {};
-	defaultSettings[JLPTLevelsFilterName] = true;
-
 	var JLPTLevelsHoverTip = 'Only include items of chosen JLPT levels.';
-
-	wkof.ready('Menu').then(installMenu);
 
 	function waitForItemDataRegistry() {
 		return wkof.wait_state('wkof.ItemData.registry', 'ready');
@@ -81,20 +65,22 @@
 
     let jlpt_db;
 
-	wkof.load_file('https://www.wanikani.com/settings/account', false /* use_cache */)
+	wkof.load_file('https://raw.githubusercontent.com/mwil/wkof-modules/master/data/jlpt.json', true /* use_cache */)
     .then(function(json){jlpt_db = JSON.parse(json);});
 
 	function JLPTLevelsFilter(filterValue, item) {
-        // console.log('Filter value is', filterValue, 'item is', item);
-
-        if (item.data.characters === '入る')
+        if (!(item.id in jlpt_db))
+            return false;
+        else
         {
-            console.log('Filter value is', filterValue, 'item is', item);
+            const jlpt_levels = jlpt_db[item.id].jlpt;
 
-            return true;
+            // if (item.data.characters !== jlpt_db[item.id].slug)
+            //     console.log('Different characters for', item.data.characters);
+
+            if (jlpt_levels.some((level)=>filterValue[level]))
+                return true;
         }
-
-        return false;
 	}
 	// END JLPT Levels
 }
