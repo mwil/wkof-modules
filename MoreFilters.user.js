@@ -3,11 +3,11 @@
 // @namespace     wkof
 // @author        acm
 // @description   Additional filters for the WaniKani Open Framework
-// @version       0.8.0
+// @version       0.9.0
 //
 // @include       *://www.wanikani.com/*
-// @copyright     2018+, Matthias Wilhelm
 //
+// @copyright     2018+, Matthias Wilhelm
 // @license       MIT; http://opensource.org/licenses/MIT
 //
 // @grant         none
@@ -19,12 +19,12 @@
 (function(wkof) {
 	'use strict';
 
-	var wkofMinimumVersion = '1.0.18';
+	const wkofMinimumVersion = '1.0.18';
 
 	if (!wkof)
 	{
-		var response = confirm(`WaniKani Open Framework acm's Filters requires WaniKani Open Framework.
-		                        Click "OK" to be forwarded to installation instructions.`);
+		const response = confirm(`WaniKani Open Framework acm's Filters requires WaniKani Open Framework.
+		                          Click "OK" to be forwarded to installation instructions.`);
 
 		if (response)
 			window.location.href = 'https://community.wanikani.com/t/28549';
@@ -39,10 +39,10 @@
 		return;
 	}
 
-	var filterNamePrefix = 'acmFilters_';
-	var JLPTLevelsFilterName = filterNamePrefix + 'JLPTLevels';
+	const filterNamePrefix = 'acmFilters_';
+	const JLPTLevelsFilterName = filterNamePrefix + 'JLPTLevels';
 
-	var JLPTLevelsHoverTip = 'Only include items of chosen JLPT levels.';
+	const JLPTLevelsHoverTip = 'Only include items of chosen JLPT levels.';
 
 	function waitForItemDataRegistry() {
 		return wkof.wait_state('wkof.ItemData.registry', 'ready');
@@ -51,7 +51,8 @@
     waitForItemDataRegistry().then(registerJLPTLevelsFilter);
 
 	// BEGIN JLPT Levels
-	function registerJLPTLevelsFilter() {
+	function registerJLPTLevelsFilter()
+	{
 		wkof.ItemData.registry.sources.wk_items.filters[JLPTLevelsFilterName] = {
 			type: 'multi',
 			label: 'JLPT Levels',
@@ -65,7 +66,7 @@
 
     let jlpt_db;
 
-	wkof.load_file('https://raw.githubusercontent.com/mwil/wkof-modules/master/data/jlpt.json', true /* use_cache */)
+	wkof.load_file('https://raw.githubusercontent.com/mwil/wkof-modules/master/data/jlpt.min.json', true /* use_cache */)
         .then(function(json){jlpt_db = JSON.parse(json);});
 
 	function JLPTLevelsFilter(filterValue, item) {
@@ -78,10 +79,8 @@
             // if (item.data.characters !== jlpt_db[item.id].slug)
             //     console.log('Different characters for', item.data.characters);
 
-            if (jlpt_levels.some((level)=>filterValue[level]))
-                return true;
+            return jlpt_levels.some((level)=>filterValue[level]);
         }
 	}
-	// END JLPT Levels
 }
 )(window.wkof);
