@@ -3,7 +3,7 @@
 // @namespace     wkof
 // @author        acm
 // @description   Additional filters for the WaniKani Open Framework
-// @version       0.9.0
+// @version       0.9.1
 //
 // @include       *://www.wanikani.com/*
 //
