@@ -3,7 +3,7 @@
 // @namespace     wkof
 // @author        acm
 // @description   Additional filters for the WaniKani Open Framework
-// @version       0.9.1
+// @version       0.9.2
 //
 // @include       *://www.wanikani.com/*
 //
@@ -44,7 +44,9 @@
         register_funcs: []
 	};
 
-	wkof.load_script('http://localhost:8088/static/JLPTLevels_filter.js', false);
+	const GIT_MASTER = 'https://raw.githubusercontent.com/mwil/wkof-modules/master';
+
+	wkof.load_script(GIT_MASTER+'/JLPTLevels_filter.js', false);
 
     wkof.wait_state('wkof.ItemData.registry', 'ready')
         .then(()=>wkof.acmFilters.register_funcs.forEach((rfunc)=>rfunc()));
